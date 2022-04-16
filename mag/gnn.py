@@ -2,7 +2,7 @@ import argparse
 import time
 import torch
 import torch.nn.functional as F
-
+import os
 from torch_geometric.data import Data
 import torch_geometric.transforms as T
 from torch_geometric.nn import GCNConv, SAGEConv
@@ -147,7 +147,7 @@ def main():
     parser = argparse.ArgumentParser(description='OGBN-MAG (GNN)')
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--log_steps', type=int, default=1)
-    parser.add_argument('--use_sage', action='store_true')
+    parser.add_argument('--use_sage', type=bool, default=False)
     parser.add_argument('--num_layers', type=int, default=2)
     parser.add_argument('--hidden_channels', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.5)
@@ -163,6 +163,7 @@ def main():
     print(args)
 
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
+    print("Use device: " + device)
     device = torch.device(device)
 
     t_load_data = time.time()
@@ -185,10 +186,12 @@ def main():
     train_idx = split_idx['train']['paper'].to(device)
 
     if args.use_sage:
+        print("use GraphSAGE model")
         model = SAGE(data.num_features, args.hidden_channels,
                      dataset.num_classes, args.num_layers,
                      args.dropout).to(device)
     else:
+        print("use GCN model")
         model = GCN(data.num_features, args.hidden_channels,
                     dataset.num_classes, args.num_layers,
                     args.dropout).to(device)
@@ -236,9 +239,10 @@ def main():
     logger.print_statistics()
 
     print(f"Total time elapsed: {time.time() - t_total : .2f}")
-    
+    t_output_model = time.time()
     with open(os.path.join(args.model_dir, 'model.pth'), 'wb') as f:
         torch.save(model.state_dict(), f)
-        
+    print(f"Output model time: {time.time() - t_output_model :.2f}")
+
 if __name__ == "__main__":
     main()
